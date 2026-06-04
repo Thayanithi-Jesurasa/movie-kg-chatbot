@@ -1,8 +1,13 @@
 import os
+import sys
 from groq import Groq
 from dotenv import load_dotenv
-from rag.retriever import get_movie_context
 
+# Handle imports whether running from root or rag/ folder
+sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
+
+from retriever import get_movie_context
+from text_to_cypher import text_to_cypher_context
 load_dotenv()
 
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
@@ -20,14 +25,19 @@ Rules:
 """
 
 def ask(question: str, chat_history: list = []) -> str:
-    # Step 1: Get context from Neo4j graph
-    context = get_movie_context(question)
+    # Step 1: Try Text-to-Cypher first (more powerful)
+    context = text_to_cypher_context(question)
 
-    # Step 2: Build messages
+    # Step 2: Fall back to keyword retriever if no results
+    if not context:
+        print("[Chain] Text-to-Cypher returned no results, falling back to keyword retriever")
+        context = get_movie_context(question)
+
+    # Step 3: Build messages
     messages = [{"role": "system", "content": SYSTEM_PROMPT}]
 
     # Add chat history for multi-turn conversation
-    for msg in chat_history[-6:]:  # keep last 6 messages
+    for msg in chat_history[-6:]:
         messages.append(msg)
 
     # Add context + question
@@ -41,7 +51,7 @@ User question: {question}
 """
     })
 
-    # Step 3: Call Groq LLM
+    # Step 4: Call Groq LLM
     response = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
         messages=messages,
@@ -54,12 +64,12 @@ User question: {question}
 
 # Quick test
 if __name__ == "__main__":
-    print("Testing RAG chain...\n")
+    print("Testing RAG chain with Text-to-Cypher...\n")
 
     questions = [
-        "Tell me about Inception",
-        "What movies did Christopher Nolan direct?",
-        "Recommend some top rated action movies",
+        "Which actors have worked with both action and comedy movies?",
+        "What are the highest rated movies directed by Christopher Nolan?",
+        "Which director has made the most movies?",
     ]
 
     history = []
@@ -68,7 +78,5 @@ if __name__ == "__main__":
         answer = ask(q, history)
         print(f"A: {answer}\n")
         print("-" * 60)
-
-        # update history
         history.append({"role": "user", "content": q})
         history.append({"role": "assistant", "content": answer})
