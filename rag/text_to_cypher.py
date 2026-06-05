@@ -36,6 +36,9 @@ Rules for generating Cypher:
 - Always add LIMIT 10 at the end
 - Return meaningful fields, not just IDs
 - Only return the Cypher query, nothing else, no explanation, no markdown
+
+- Important: The sci-fi genre is stored as "Science Fiction" not "sci-fi"
+- Important: Genre names are case sensitive, use exact names like "Action", "Comedy", "Drama", "Science Fiction", "Thriller", "Romance", "Adventure", "Crime", "Fantasy", "Horror", "Animation"
 """
 
 def generate_cypher(question: str) -> str:
